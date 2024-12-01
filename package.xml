@@ -1,0 +1,24 @@
+<package format="3">
+  <name>audio_tts</name>
+  <version>0.0.0</version>
+  <description>ChatGPT 응답을 음성으로 변환하는 ROS 2 노드</description>
+  <maintainer email="your.email@example.com">Your Name</maintainer>
+  <license>Apache License 2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <!-- 필요한 추가 의존성 -->
+  <exec_depend>torch</exec_depend>
+  <exec_depend>openvoice</exec_depend>
+  <exec_depend>melo</exec_depend>
+  <exec_depend>requests</exec_depend>
+  <exec_depend>tqdm</exec_depend>
+  <exec_depend>audio_chatgpt</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+
