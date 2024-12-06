@@ -18,20 +18,25 @@ class AudioTTSNode(Node):
             10)
         self.subscription  # prevent unused variable warning
 
+        # route_guidance_done 토픽 구독
+        self.route_guidance_sub = self.create_subscription(
+            String,
+            'route_guidance_done',
+            self.route_guidance_callback,
+            10)
+        
+        # route_completed 토픽 발행
+        self.route_done_publisher = self.create_publisher(
+            String,
+            'route_completed',
+            10)
+
         self.get_logger().info('Audio TTS Node가 시작되었습니다.')
 
         try:
             # TTS 모델 초기화
             self.custom_tts = Custom_TTS()
-            self.custom_tts.set_model(language='KR')
-
-            # 레퍼런스 스피커 설정 (예시로 'reference_speaker.wav' 파일 사용)
-            reference_speaker_path = os.path.join(os.path.dirname(__file__), 'sample_sunhi.mp3')
-            if not os.path.exists(reference_speaker_path):
-                self.get_logger().error(f'레퍼런스 스피커 파일이 존재하지 않습니다: {reference_speaker_path}')
-                rclpy.shutdown()
-                return
-            self.custom_tts.get_reference_speaker(reference_speaker_path)
+            self.custom_tts.set_model(language='ko')  # 'KR'에서 'ko'로 변경
         except Exception as e:
             self.get_logger().error(f'초기화 중 오류 발생: {e}')
             rclpy.shutdown()
@@ -43,13 +48,40 @@ class AudioTTSNode(Node):
 
         # TTS 수행
         try:
-            self.custom_tts.make_speech(chatgpt_reply)
-            self.get_logger().info('TTS 변환 및 음성 변조 완료')
-            # 음성 파일 재생 (필요한 경우)
-            output_audio_path = f'{self.custom_tts.output_path}/result_{self.custom_tts.result_cnt - 1}.wav'
-            os.system(f'play {output_audio_path}')  # 'sox' 패키지가 설치되어 있어야 합니다.
+            output_path = self.custom_tts.make_speech(chatgpt_reply)
+            if output_path:
+                self.get_logger().info('TTS 변환 완료')
+                os.system(f'mpg321 {output_path}')  # play 대신 mpg321 사용
         except Exception as e:
             self.get_logger().error(f'TTS 처리 중 오류 발생: {e}')
+
+    def route_guidance_callback(self, msg):
+        location = msg.data
+        self.get_logger().info(f'길 안내 완료: "{location}"')
+
+        # 위치 매핑 딕셔너리
+        location_mapping = {
+            '응급실': '0',
+            '수납': '1',
+            '접수': '1',
+            '편의점': '2',
+            '화장실': '3'
+        }
+
+        try:
+            guidance_message = f'{location}로 안내를 시작합니다.'
+            output_path = self.custom_tts.make_speech(guidance_message)
+            if output_path:
+                self.get_logger().info('길 안내 TTS 변환 완료')
+                os.system(f'mpg321 {output_path}')
+
+            # route_completed 토픽으로 매핑된 숫자값 퍼블리시
+            route_done_msg = String()
+            route_done_msg.data = location_mapping.get(location, '0')  # 매핑되지 않은 경우 기본값 '0'
+            self.route_done_publisher.publish(route_done_msg)
+            self.get_logger().info(f'route_completed 토픽에 "{route_done_msg.data}" 메시지를 퍼블리시했습니다.')
+        except Exception as e:
+            self.get_logger().error(f'길 안내 TTS 처리 중 오류 발생: {e}')
 
 def main(args=None):
     rclpy.init(args=args)
